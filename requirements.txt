@@ -9,3 +9,4 @@ pre-commit
 pytest
 tqdm
 types-tqdm
+pydantic[email]>=2.0

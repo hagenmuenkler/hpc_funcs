@@ -4,11 +4,13 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from jinja2 import Template
+from pydantic import BaseModel, EmailStr, Field
 
 DEFAULT_LOG_DIR = Path("./ugelogs/")
-TEMPLATE_TASKARRAY = Path(__file__).parent / "templates" / "submit-task-array.jinja"
-TEMPLATE_SINGLE = Path(__file__).parent / "templates" / "submit-normal.jinja"
-TEMPLATE_HOLDING = Path(__file__).parent / "templates" / "submit-holding.jinja"
+MASTER_TEMPLATE = Path(__file__).parent / "templates" / "submit_template.jinja"
+# TEMPLATE_TASKARRAY = Path(__file__).parent / "templates" / "submit-task-array.jinja"
+# TEMPLATE_SINGLE = Path(__file__).parent / "templates" / "submit-normal.jinja"
+# TEMPLATE_HOLDING = Path(__file__).parent / "templates" / "submit-holding.jinja"
 logger = logging.getLogger(__name__)
 
 LMOD_LINES = [
@@ -17,121 +19,185 @@ LMOD_LINES = [
 ]
 
 
-# pylint: disable=too-many-arguments,too-many-locals
-def generate_single_script(
-    cmd: str,
-    cores: int = 1,
-    cwd: Optional[Path] = None,
-    environ: Dict[str, str] | None = None,
-    hours: int = 7,
-    mins: Optional[int] = None,
-    log_dir: Optional[Path] = DEFAULT_LOG_DIR,
-    mem: int = 4,
-    name: str = "UGEJob",
-    hold_job_id: Optional[str] = None,
-    user_email: Optional[str] = None,
-    generate_dirs: bool = True,
-) -> str:
-    """
-    Remember:
-      - To set core restrictive env variables
+class TaskConfig(BaseModel):
+    """Configuration for UGE job submission.
+
+    To set up a task array, set task_stop to a value greater than task_start (1 by default).
+    If task_stop is not set, job will not be submitted as job array.
+
+    To limit the number of concurrent tasks in a task array, set task_concurrent to a value greater than 0.
+    By default, no such limit is set.
     """
 
-    if not isinstance(cores, int) or cores < 1:
-        raise ValueError(
-            "Cannot submit with invalid cores set. Needs to be a integer greater than 0."
-        )
+    cmd: str = Field(..., description="Command to execute")
+    name: str = Field(default="UGEJob", description="Job name")
+    cores: int = Field(default=1, ge=1, description="Number of cores")
+    mem: int = Field(default=4, ge=1, description="Memory in GB")
+    hours: int = Field(default=7, ge=0, description="Hours for runtime")
+    mins: int = Field(default=0, ge=0, le=59, description="Minutes for runtime")
+    log_dir: Optional[Path] = Field(default=DEFAULT_LOG_DIR, description="Log directory")
+    cwd: Optional[Path] = Field(default=None, description="Working directory")
+    environ: Dict[str, str] = Field(default_factory=dict, description="Environment variables")
 
-    if environ is None:
-        environ = {}
+    # GPU support
+    gpu: Optional[str] = Field(default=None, description="GPU card specification")
 
-    kwargs = locals()
+    # Task array support
+    task_start: int = Field(default=1, ge=1, description="Task array start index")
+    task_stop: Optional[int] = Field(default=None, ge=1, description="Task array stop index")
+    task_step: int = Field(default=1, ge=1, description="Task array step")
+    task_concurrent: Optional[int] = Field(default=None, ge=1, description="Concurrent tasks")
 
-    if generate_dirs:
-        kwargs["log_dir"] = generate_log_dir(log_dir)
-
-    with open(TEMPLATE_SINGLE) as file_:
-        template = Template(file_.read())
-
-    script = template.render(**kwargs)
-
-    return script
-
-
-# pylint: disable=too-many-arguments,too-many-locals
-def generate_taskarray_script(
-    cmd: str,
-    cores: int = 1,
-    cwd: Optional[Path] = None,
-    environ: Dict[str, str] | None = None,
-    hours: int = 7,
-    mins: Optional[int] = None,
-    log_dir: Optional[Path] = DEFAULT_LOG_DIR,
-    mem: int = 4,
-    name: str = "UGEJob",
-    task_concurrent: int = 100,
-    task_start: int = 1,
-    task_step: int = 1,
-    task_stop: Optional[int] = None,
-    hold_job_id: Optional[str] = None,
-    user_email: Optional[str] = None,
-    generate_dirs: bool = True,
-) -> str:
-    """
-
-    If task_stop is not set, job will not be submitted as jobarray
-
-    Remember:
-      - To set core restrictive env variables
-    """
-
-    if not isinstance(cores, int) or cores < 1:
-        raise ValueError(
-            "Cannot submit with invalid cores set. Needs to be a integer greater than 0."
-        )
-
-    if environ is None:
-        environ = {}
-
-    kwargs = locals()
-
-    if generate_dirs:
-        kwargs["log_dir"] = generate_log_dir(log_dir)
-
-    with open(TEMPLATE_TASKARRAY) as file_:
-        template = Template(file_.read())
-
-    script = template.render(**kwargs)
-
-    return script
-
-
-def generate_hold_script(
-    hold_job_id: str,
-    user_email: str | None = None,
-    cmd: str = "sleep 1",
-    name: str = "UGEHoldJob",
-    log_dir: Path | None = DEFAULT_LOG_DIR,
-    generate_dirs: bool = True,
-) -> str:
-
-    if generate_dirs:
-        log_dir_str = generate_log_dir(log_dir)
-    else:
-        log_dir_str = str(log_dir.resolve()) if log_dir is not None else None
-
-    with open(TEMPLATE_HOLDING) as file_:
-        template = Template(file_.read())
-
-    script = template.render(
-        hold_job_id=hold_job_id,
-        user_email=user_email,
-        cmd=cmd,
-        name=name,
-        log_dir=log_dir_str,
+    # Email notifications
+    user_email: Optional[EmailStr] = Field(
+        default=None, description="User email for notifications"
     )
 
+    # Job dependencies
+    hold_job_id: Optional[str] = Field(default=None, description="Hold job ID for dependencies")
+
+    # Modules
+    module_use: List[Path] = Field(default_factory=list, description="Module use paths")
+    module_load: List[str] = Field(default_factory=list, description="Modules to load")
+
+
+def generate_script(
+    config: TaskConfig | dict,
+    generate_dirs: bool = True,
+) -> str:
+    """
+    Generate a script to submit a job to UGE based on the provided configuration.
+    """
+
+    if not isinstance(config, TaskConfig):
+        config = TaskConfig(**config)
+
+    if generate_dirs:
+        generate_log_dir(config.log_dir)
+
+    with open(MASTER_TEMPLATE, encoding="utf-8") as file_:
+        template = Template(file_.read())
+
+    script = template.render(config.model_dump())
+
     return script
+
+
+# pylint: disable=too-many-arguments,too-many-locals
+# def generate_single_script(
+#     cmd: str,
+#     cores: int = 1,
+#     cwd: Optional[Path] = None,
+#     environ: Dict[str, str] | None = None,
+#     hours: int = 7,
+#     mins: Optional[int] = None,
+#     log_dir: Optional[Path] = DEFAULT_LOG_DIR,
+#     mem: int = 4,
+#     name: str = "UGEJob",
+#     hold_job_id: Optional[str] = None,
+#     user_email: Optional[str] = None,
+#     generate_dirs: bool = True,
+# ) -> str:
+#     """
+#     Remember:
+#       - To set core restrictive env variables
+#     """
+
+#     if not isinstance(cores, int) or cores < 1:
+#         raise ValueError(
+#             "Cannot submit with invalid cores set. Needs to be a integer greater than 0."
+#         )
+
+#     if environ is None:
+#         environ = {}
+
+#     kwargs = locals()
+
+#     if generate_dirs:
+#         kwargs["log_dir"] = generate_log_dir(log_dir)
+
+#     with open(TEMPLATE_SINGLE) as file_:
+#         template = Template(file_.read())
+
+#     script = template.render(**kwargs)
+
+#     return script
+
+
+# # pylint: disable=too-many-arguments,too-many-locals
+# def generate_taskarray_script(
+#     cmd: str,
+#     cores: int = 1,
+#     cwd: Optional[Path] = None,
+#     environ: Dict[str, str] | None = None,
+#     hours: int = 7,
+#     mins: Optional[int] = None,
+#     log_dir: Optional[Path] = DEFAULT_LOG_DIR,
+#     mem: int = 4,
+#     name: str = "UGEJob",
+#     task_concurrent: int = 100,
+#     task_start: int = 1,
+#     task_step: int = 1,
+#     task_stop: Optional[int] = None,
+#     hold_job_id: Optional[str] = None,
+#     user_email: Optional[str] = None,
+#     generate_dirs: bool = True,
+# ) -> str:
+#     """
+
+#     If task_stop is not set, job will not be submitted as jobarray
+
+#     Remember:
+#       - To set core restrictive env variables
+#     """
+
+#     if not isinstance(cores, int) or cores < 1:
+#         raise ValueError(
+#             "Cannot submit with invalid cores set. Needs to be a integer greater than 0."
+#         )
+
+#     if environ is None:
+#         environ = {}
+
+#     kwargs = locals()
+
+#     if generate_dirs:
+#         kwargs["log_dir"] = generate_log_dir(log_dir)
+
+#     with open(TEMPLATE_TASKARRAY) as file_:
+#         template = Template(file_.read())
+
+#     script = template.render(**kwargs)
+
+#     return script
+
+
+# def generate_hold_script(
+#     hold_job_id: str,
+#     user_email: str | None = None,
+#     cmd: str = "sleep 1",
+#     name: str = "UGEHoldJob",
+#     log_dir: Path | None = DEFAULT_LOG_DIR,
+#     generate_dirs: bool = True,
+# ) -> str:
+
+#     if generate_dirs:
+#         log_dir_str = generate_log_dir(log_dir)
+#     else:
+#         log_dir_str = str(log_dir.resolve()) if log_dir is not None else None
+
+#     with open(TEMPLATE_HOLDING) as file_:
+#         template = Template(file_.read())
+
+#     script = template.render(
+#         hold_job_id=hold_job_id,
+#         user_email=user_email,
+#         cmd=cmd,
+#         name=name,
+#         log_dir=log_dir_str,
+#     )
+
+#     return script
 
 
 def generate_log_dir(log_dir: Path | None) -> str | None:
@@ -156,7 +222,7 @@ def read_logfiles(
     filter_lmod: bool = False,
 ) -> Tuple[Dict[Path, List[str]], Dict[Path, List[str]]]:
     """Read logfiles produced by UGE task array. Ignore empty log files"""
-    logger.debug(f"Looking for finished log files in {log_path}")
+    logger.debug("Looking for finished log files in %s", log_path)
     stderr_log_filenames = list(log_path.glob(f"*.e{job_id}*"))
 
     stderr = dict()
@@ -197,6 +263,6 @@ def filter_stderr_for_lmod(stderr_dict: Dict[Path, List[str]]) -> Dict[Path, Lis
 def parse_logfile(filename: Path) -> List[str]:
     """Read logfile, without line-breaks"""
     # TODO Maybe find exceptions and raise them?
-    with open(filename, "r") as f:
+    with open(filename, "r", encoding="utf-8") as f:
         lines = f.read().split("\n")
     return lines
