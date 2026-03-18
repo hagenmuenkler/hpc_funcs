@@ -19,6 +19,7 @@
 {% endfor %}
 
 {% for path in module_use %}module use {{ path }}
+{% endfor %}
 {% for module in module_load %}module load {{ module }}
 {% endfor %}
 {{ cmd }}
