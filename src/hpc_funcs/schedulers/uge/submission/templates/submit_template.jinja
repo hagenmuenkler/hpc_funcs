@@ -18,6 +18,7 @@
 {% for key, value in environ.items() %}export {{ key }}={{ value }}
 {% endfor %}
 
+{% if module_purge %}module purge{% endif %}
 {% for path in module_use %}module use {{ path }}
 {% endfor %}
 {% for module in module_load %}module load {{ module }}

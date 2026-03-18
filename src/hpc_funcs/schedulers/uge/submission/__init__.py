@@ -57,6 +57,7 @@ class TaskConfig(BaseModel):
     )
 
     # Modules
+    module_purge: bool = Field(default=False, description="Whether to purge modules")
     module_use: List[Path] = Field(default_factory=list, description="Module use paths")
     module_load: List[str] = Field(default_factory=list, description="Modules to load")
 
