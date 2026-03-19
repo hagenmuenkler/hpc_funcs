@@ -27,8 +27,8 @@ def get_lmod_executable() -> Path:
     if _dir is None:
         raise RuntimeError("LMOD_DIR environment variable not set - LMOD not available")
 
-    dir = Path(_dir)
-    exe = dir / "lmod"
+    __dir = Path(_dir)
+    exe = __dir / "lmod"
 
     if not which(exe):
         raise RuntimeError(f"LMOD executable not found at {exe}")
@@ -38,7 +38,10 @@ def get_lmod_executable() -> Path:
 
 # pylint: disable=too-many-locals
 def module(
-    command: str, arguments: str, cmd: Optional[Path] = None
+    command: str,
+    arguments: str,
+    cmd: Optional[Path] = None,
+    add_to_modulepath: list[str] | None = None,
 ) -> Tuple[Dict[str, str], Optional[str]]:
     """Use lmod to execute environmental changes.
 
@@ -62,16 +65,23 @@ def module(
 
     logger.debug(execution)
 
-    with subprocess.Popen(
+    modulepath_env = {}
+    if add_to_modulepath is not None:
+        modulepath = os.environ.get("MODULEPATH", "")
+        for path in add_to_modulepath:
+            modulepath = f"{path}:{modulepath}"
+        modulepath_env["MODULEPATH"] = modulepath
+
+    result = subprocess.run(
         execution,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    ) as popen:
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, **modulepath_env},
+    )
 
-        bstdout, bstderr = popen.communicate()
-
-        stdout = bstdout.decode("utf-8")
-        stderr = bstderr.decode("utf-8")
+    stdout = result.stdout
+    stderr = result.stderr
 
     if "error" in stderr:
         raise RuntimeError(f"LMOD error: {stderr}")
@@ -162,15 +172,17 @@ def purge() -> None:
     module("purge", "")
 
 
-def load(module_name: str) -> None:
+def load(module_name: str, add_to_modulepath: list[str] | None = None) -> None:
     """use `module load` to overload your environment"""
-    update_dict, _ = module("load", module_name)
+    update_dict, _ = module("load", module_name, add_to_modulepath=add_to_modulepath)
     update_environment(update_dict)
 
 
-def get_load_environment(module_name: str) -> Dict[str, str]:
+def get_load_environment(
+    module_name: str, add_to_modulepath: list[str] | None = None
+) -> Dict[str, str]:
     """use `module load` to overload your environment"""
-    update_dict, _ = module("load", module_name)
+    update_dict, _ = module("load", module_name, add_to_modulepath=add_to_modulepath)
     return update_dict
 
 
