@@ -60,7 +60,7 @@ def submit_script(script_path: Path | str) -> str:
         The UGE job ID as a string.
 
     Raises:
-        RuntimeError: If submission fails or job ID cannot be parsed.
+        RuntimeError: If the qsub command fails or job ID cannot be parsed.
         FileNotFoundError: If script_path does not exist.
     """
     script_path = Path(script_path)
@@ -68,37 +68,27 @@ def submit_script(script_path: Path | str) -> str:
     if not script_path.exists():
         raise FileNotFoundError(f"Script not found: {script_path}")
 
-    cmd = f"qsub {script_path.name}"
+    cmd = f"qsub -terse {script_path.name}"
     logger.debug(f"Running: {cmd} in {script_path.parent}")
 
-    process = subprocess.run(
-        cmd,
-        cwd=script_path.parent,
-        encoding="utf-8",
-        capture_output=True,
-        shell=True,
-    )
+    try:
+        process = subprocess.run(
+            cmd,
+            cwd=script_path.parent,
+            encoding="utf-8",
+            capture_output=True,
+            shell=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as e:
+        logger.error(f"qsub failed with return code {e.returncode}")
+        logger.error(f"qsub stderr: {e.stderr.strip()}")
+        raise RuntimeError(f"Failed to submit job with qsub: {e.stderr.strip()}") from e
 
-    stdout = process.stdout
-    stderr = process.stderr
+    uge_id = process.stdout.strip()
 
-    if stderr:
-        raise RuntimeError(f"qsub failed with stderr: {stderr.strip()}")
-
-    if not stdout:
+    if not uge_id:
         raise RuntimeError("qsub returned no output - unable to get job ID")
-
-    # Successful submission
-    # find id
-    logger.info(f"submit stdout: {stdout.strip()}")
-
-    # Your job JOB_ID ("JOB_NAME") has been submitted
-    last_line = stdout.strip().split("\n")[-1]
-    if "has been submitted" not in last_line:
-        raise RuntimeError(f"Unexpected qsub output: '{last_line}'")
-
-    uge_id = last_line.split()[2]
-    uge_id = uge_id.split(".")[0]
 
     # Validate format of job_id
     try:
