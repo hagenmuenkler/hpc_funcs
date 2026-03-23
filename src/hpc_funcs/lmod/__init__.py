@@ -41,7 +41,7 @@ def module(
     command: str,
     arguments: str,
     cmd: Optional[Path] = None,
-    add_to_modulepath: list[str] | None = None,
+    env: Optional[Dict[str, str]] = None,
 ) -> Tuple[Dict[str, str], Optional[str]]:
     """Use lmod to execute environmental changes.
 
@@ -64,20 +64,16 @@ def module(
     execution: Any = [cmd, "python", command, arguments]
 
     logger.debug(execution)
-
-    modulepath_env = {}
-    if add_to_modulepath is not None:
-        modulepath = os.environ.get("MODULEPATH", "")
-        for path in add_to_modulepath:
-            modulepath = f"{path}:{modulepath}"
-        modulepath_env["MODULEPATH"] = modulepath
+    if env is None:
+        env = os.environ.copy()
+    logger.debug(f"Environment before module command: {env}")
 
     result = subprocess.run(
         execution,
         capture_output=True,
         text=True,
         check=False,
-        env={**os.environ, **modulepath_env},
+        env=env,
     )
 
     stdout = result.stdout
@@ -172,17 +168,15 @@ def purge() -> None:
     module("purge", "")
 
 
-def load(module_name: str, add_to_modulepath: list[str] | None = None) -> None:
+def load(module_name: str, env: Optional[Dict[str, str]] = None) -> None:
     """use `module load` to overload your environment"""
-    update_dict, _ = module("load", module_name, add_to_modulepath=add_to_modulepath)
+    update_dict = get_load_environment(module_name, env=env)
     update_environment(update_dict)
 
 
-def get_load_environment(
-    module_name: str, add_to_modulepath: list[str] | None = None
-) -> Dict[str, str]:
+def get_load_environment(module_name: str, env: Optional[Dict[str, str]] = None) -> Dict[str, str]:
     """use `module load` to overload your environment"""
-    update_dict, _ = module("load", module_name, add_to_modulepath=add_to_modulepath)
+    update_dict, _ = module("load", module_name, env=env)
     return update_dict
 
 
