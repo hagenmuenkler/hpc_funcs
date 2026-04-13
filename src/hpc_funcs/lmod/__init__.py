@@ -5,14 +5,14 @@ import subprocess
 import sys
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from hpc_funcs.shell import which
 
 logger = logging.getLogger("lmod")
 
 
-@lru_cache()
+@lru_cache
 def get_lmod_executable() -> Path:
     """Get the LMOD executable path.
 
@@ -40,9 +40,9 @@ def get_lmod_executable() -> Path:
 def module(
     command: str,
     arguments: str,
-    cmd: Optional[Path] = None,
-    env: Optional[Dict[str, str]] = None,
-) -> Tuple[Dict[str, str], Optional[str]]:
+    cmd: Path | None = None,
+    env: dict[str, str] | None = None,
+) -> tuple[dict[str, str], str | None]:
     """Use lmod to execute environmental changes.
 
     Args:
@@ -103,13 +103,9 @@ def module(
         if "_LMFILES_" in line:
             return False
 
-        if "_ModuleTable" in line:
-            return False
+        return "_ModuleTable" not in line
 
-        return True
-
-    def _split_line(line: str) -> Tuple[str, str]:
-
+    def _split_line(line: str) -> tuple[str, str]:
         # format:
         # os.environ["key"] = "value:value"
 
@@ -140,9 +136,8 @@ def module(
     return environment_update, stderr
 
 
-def update_environment(update_dict: Dict[str, str]) -> None:
-
-    pythonpath = update_dict.get("PYTHONPATH", None)
+def update_environment(update_dict: dict[str, str]) -> None:
+    pythonpath = update_dict.get("PYTHONPATH")
 
     os.environ.update(update_dict)
 
@@ -168,13 +163,13 @@ def purge() -> None:
     module("purge", "")
 
 
-def load(module_name: str, env: Optional[Dict[str, str]] = None) -> None:
+def load(module_name: str, env: dict[str, str] | None = None) -> None:
     """use `module load` to overload your environment"""
     update_dict = get_load_environment(module_name, env=env)
     update_environment(update_dict)
 
 
-def get_load_environment(module_name: str, env: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+def get_load_environment(module_name: str, env: dict[str, str] | None = None) -> dict[str, str]:
     """use `module load` to overload your environment"""
     update_dict, _ = module("load", module_name, env=env)
     return update_dict
@@ -186,7 +181,7 @@ def use(path: Path | str) -> None:
     update_environment(update_dict)
 
 
-def get_modules() -> Dict[int, str]:
+def get_modules() -> dict[int, str]:
     """Return all active LMOD modules.
 
     Hidden modules are ignored.
@@ -212,17 +207,13 @@ def get_modules() -> Dict[int, str]:
         if line[0] != " ":
             return False
 
-        if ")" not in line:
-            return False
-
-        return True
+        return ")" in line
 
     # Filter to only lines with modules
     lines = [line for line in lines if _filter(line)]
 
-    modules = dict()
+    modules = {}
     for line in lines:
-
         # Standardize the line
         line = " ".join(line.strip().split())
 
@@ -231,8 +222,7 @@ def get_modules() -> Dict[int, str]:
         mods = [x.strip() for x in mods if len(x)]
 
         # The delimiters are kept, so select every second
-        for key, mod in zip(mods[::2], mods[1::2]):
-
+        for key, mod in zip(mods[::2], mods[1::2], strict=False):
             if "(H)" in mod:
                 continue
 
@@ -243,7 +233,7 @@ def get_modules() -> Dict[int, str]:
     return modules
 
 
-def get_paths() -> List[str]:
+def get_paths() -> list[str]:
     """Return all LMOD paths in use"""
     paths = os.environ.get("MODULEPATH", "")
     paths_ = paths.split(":")

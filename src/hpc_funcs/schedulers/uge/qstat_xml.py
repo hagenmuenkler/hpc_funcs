@@ -1,15 +1,15 @@
 import logging
 import subprocess
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Union
+from typing import Any
 from xml.etree.ElementTree import Element
 
 logger = logging.getLogger(__name__)
 
 
 def get_qstat_job_xml(
-    job_id: Union[str, int],
-) -> List[Dict[str, Any]]:
+    job_id: str | int,
+) -> list[dict[str, Any]]:
     """Get detailed information for a specific job using qstat -j -xml.
 
     This returns comprehensive information about a single job, including
@@ -61,16 +61,14 @@ def get_qstat_job_xml(
 
 def parse_jobinfo_xml(
     stdout_xml: str,
-) -> List[
-    Dict[
+) -> list[
+    dict[
         str,
-        Union[
-            str,
-            List[Dict[str, Union[List[Dict[str, str]], str]]],
-            List[Dict[str, str]],
-            Dict[str, Dict[str, str]],
-            Dict[str, str],
-        ],
+        str
+        | list[dict[str, list[dict[str, str]] | str]]
+        | list[dict[str, str]]
+        | dict[str, dict[str, str]]
+        | dict[str, str],
     ]
 ]:
     """
@@ -135,33 +133,29 @@ def parse_element(elem: Element) -> Any:
 
 def element_to_dict(
     elem: Element,
-) -> Dict[
+) -> dict[
     str,
-    Union[
-        str,
-        List[Dict[str, Union[List[Dict[str, str]], str]]],
-        List[Dict[str, str]],
-        Dict[str, Dict[str, str]],
-        Dict[str, str],
-    ],
+    str
+    | list[dict[str, list[dict[str, str]] | str]]
+    | list[dict[str, str]]
+    | dict[str, dict[str, str]]
+    | dict[str, str],
 ]:
-
     children = list(elem)
-    child_map: Dict[str, List[Any]] = {}
+    child_map: dict[str, list[Any]] = {}
     for child in children:
         child_val = parse_element(child)
         child_map.setdefault(child.tag, []).append(child_val)
 
-    d: Dict[str, Any] = {}
+    d: dict[str, Any] = {}
     for tag, items in child_map.items():
         d[tag] = items[0] if len(items) == 1 else items
 
     return d
 
 
-def element_to_list(elem: Element) -> List[Dict[str, Union[List[Dict[str, str]], str]]]:
-
-    out: List[Any] = []
+def element_to_list(elem: Element) -> list[dict[str, list[dict[str, str]] | str]]:
+    out: list[Any] = []
     for child in elem:
         if child.tag != "element":
             continue

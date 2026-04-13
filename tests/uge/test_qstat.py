@@ -18,7 +18,6 @@ if not has_uge():
 
 
 def test_all():
-
     print()
 
     jobs_json = get_all_jobs_json()
@@ -35,7 +34,6 @@ def test_all():
 
 
 def test_jobinfo_from_joblist_text():
-
     jobs = get_all_jobs_text()
     df = pd.DataFrame(jobs)
     print(df)

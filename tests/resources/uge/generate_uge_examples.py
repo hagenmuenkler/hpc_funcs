@@ -10,7 +10,6 @@ from hpc_funcs.shell import execute
 
 
 def generate_taskarray_log(global_tmp_path: Path):
-
     # Need network accessible folder
     tmp_path = global_tmp_path
 
@@ -46,7 +45,6 @@ def generate_taskarray_log(global_tmp_path: Path):
 
 
 def generate_errorjob_log(global_tmp_path: Path):
-
     # Need network accessible folder
     tmp_path = global_tmp_path
 
@@ -84,7 +82,6 @@ def generate_joblists():
 
 
 if __name__ == "__main__":
-
     tmp_path = Path("./examples")
     tmp_path.mkdir()
 

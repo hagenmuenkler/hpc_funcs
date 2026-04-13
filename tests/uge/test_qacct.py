@@ -5,10 +5,9 @@ from hpc_funcs.schedulers.uge import qacct
 
 
 def test_parse_text():
-
     filename = RESOURCES / "uge" / "qacct_array.txt"
 
-    with open(filename, "r") as f:
+    with open(filename) as f:
         stdout = f.read()
 
     data = qacct.parse_qacct(stdout)

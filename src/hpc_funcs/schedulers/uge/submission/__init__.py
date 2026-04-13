@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from jinja2 import Template
 
@@ -21,15 +21,15 @@ LMOD_LINES = [
 def generate_single_script(
     cmd: str,
     cores: int = 1,
-    cwd: Optional[Path] = None,
-    environ: Dict[str, str] | None = None,
+    cwd: Path | None = None,
+    environ: dict[str, str] | None = None,
     hours: int = 7,
-    mins: Optional[int] = None,
-    log_dir: Optional[Path] = DEFAULT_LOG_DIR,
+    mins: int | None = None,
+    log_dir: Path | None = DEFAULT_LOG_DIR,
     mem: int = 4,
     name: str = "UGEJob",
-    hold_job_id: Optional[str] = None,
-    user_email: Optional[str] = None,
+    hold_job_id: str | None = None,
+    user_email: str | None = None,
     generate_dirs: bool = True,
 ) -> str:
     """
@@ -62,19 +62,19 @@ def generate_single_script(
 def generate_taskarray_script(
     cmd: str,
     cores: int = 1,
-    cwd: Optional[Path] = None,
-    environ: Dict[str, str] | None = None,
+    cwd: Path | None = None,
+    environ: dict[str, str] | None = None,
     hours: int = 7,
-    mins: Optional[int] = None,
-    log_dir: Optional[Path] = DEFAULT_LOG_DIR,
+    mins: int | None = None,
+    log_dir: Path | None = DEFAULT_LOG_DIR,
     mem: int = 4,
     name: str = "UGEJob",
     task_concurrent: int = 100,
     task_start: int = 1,
     task_step: int = 1,
-    task_stop: Optional[int] = None,
-    hold_job_id: Optional[str] = None,
-    user_email: Optional[str] = None,
+    task_stop: int | None = None,
+    hold_job_id: str | None = None,
+    user_email: str | None = None,
     generate_dirs: bool = True,
 ) -> str:
     """
@@ -114,7 +114,6 @@ def generate_hold_script(
     log_dir: Path | None = DEFAULT_LOG_DIR,
     generate_dirs: bool = True,
 ) -> str:
-
     if generate_dirs:
         log_dir_str = generate_log_dir(log_dir)
     else:
@@ -135,7 +134,6 @@ def generate_hold_script(
 
 
 def generate_log_dir(log_dir: Path | None) -> str | None:
-
     if log_dir is not None:
         if not log_dir.exists():
             log_dir.mkdir(parents=True)
@@ -154,12 +152,12 @@ def read_logfiles(
     job_id: str,
     ignore_stdout: bool = True,
     filter_lmod: bool = False,
-) -> Tuple[Dict[Path, List[str]], Dict[Path, List[str]]]:
+) -> tuple[dict[Path, list[str]], dict[Path, list[str]]]:
     """Read logfiles produced by UGE task array. Ignore empty log files"""
     logger.debug(f"Looking for finished log files in {log_path}")
     stderr_log_filenames = list(log_path.glob(f"*.e{job_id}*"))
 
-    stderr = dict()
+    stderr = {}
     for filename in stderr_log_filenames:
         if filename.stat().st_size == 0:
             continue
@@ -169,10 +167,10 @@ def read_logfiles(
         stderr = filter_stderr_for_lmod(stderr)
 
     if ignore_stdout:
-        return dict(), stderr
+        return {}, stderr
 
     stdout_log_filenames = log_path.glob(f"*.o{job_id}*")
-    stdout = dict()
+    stdout = {}
     for filename in stdout_log_filenames:
         if filename.stat().st_size == 0:
             continue
@@ -181,7 +179,7 @@ def read_logfiles(
     return stdout, stderr
 
 
-def filter_stderr_for_lmod(stderr_dict: Dict[Path, List[str]]) -> Dict[Path, List[str]]:
+def filter_stderr_for_lmod(stderr_dict: dict[Path, list[str]]) -> dict[Path, list[str]]:
     """Filter stderr for lmod lines"""
 
     stderr_filtered = defaultdict(list)
@@ -194,9 +192,9 @@ def filter_stderr_for_lmod(stderr_dict: Dict[Path, List[str]]) -> Dict[Path, Lis
     return dict(stderr_filtered)
 
 
-def parse_logfile(filename: Path) -> List[str]:
+def parse_logfile(filename: Path) -> list[str]:
     """Read logfile, without line-breaks"""
     # TODO Maybe find exceptions and raise them?
-    with open(filename, "r") as f:
+    with open(filename) as f:
         lines = f.read().split("\n")
     return lines

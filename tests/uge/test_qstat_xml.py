@@ -8,7 +8,7 @@ def test_parse_jobinfo_xml():
 
     filename = RESOURCES / "uge" / "qstat_jobinfo_array.xml"
 
-    with open(filename, "r") as f:
+    with open(filename) as f:
         xml_str = f.read()
 
     jobs = parse_jobinfo_xml(xml_str)

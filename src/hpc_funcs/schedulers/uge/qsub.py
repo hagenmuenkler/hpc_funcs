@@ -27,10 +27,7 @@ def write_script(
     Raises:
         ValueError: If directory exists but is not a directory.
     """
-    if directory is None:
-        directory = Path("./")
-    else:
-        directory = Path(directory)
+    directory = Path("./") if directory is None else Path(directory)
 
     directory.mkdir(parents=True, exist_ok=True)
 
@@ -103,8 +100,8 @@ def submit_script(script_path: Path | str) -> str:
     # Validate format of job_id
     try:
         int(uge_id)
-    except ValueError:
-        raise RuntimeError(f"UGE Job ID is not a valid number: '{uge_id}'")
+    except ValueError as err:
+        raise RuntimeError(f"UGE Job ID is not a valid number: '{uge_id}'") from err
 
     logger.info(f"Submitted job: {uge_id}")
 

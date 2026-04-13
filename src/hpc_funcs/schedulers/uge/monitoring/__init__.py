@@ -2,7 +2,8 @@ import copy
 import logging
 import time
 from collections import defaultdict
-from typing import Any, Dict, Iterator, List
+from collections.abc import Iterator
+from typing import Any
 
 from hpc_funcs.schedulers.uge.constants import TAGS_RUNNING
 from hpc_funcs.schedulers.uge.qstat import get_all_jobs_text
@@ -12,7 +13,7 @@ from hpc_funcs.schedulers.uge.qstat_text import COLUMN_SLOTS, COLUMN_STATE, COLU
 logger = logging.getLogger(__name__)
 
 
-def get_cluster_usage() -> Dict[str, int]:
+def get_cluster_usage() -> dict[str, int]:
     """Get cluster usage information, grouped by users.
 
     Returns:
@@ -29,7 +30,7 @@ def get_cluster_usage() -> Dict[str, int]:
     running_jobs = [j for j in jobs if j.get(COLUMN_STATE) in TAGS_RUNNING]
 
     # Group by user and sum slots
-    counts: Dict[str, int] = defaultdict(int)
+    counts: dict[str, int] = defaultdict(int)
     for job in running_jobs:
         user = job.get(COLUMN_USER, "unknown")
         slots = int(job.get(COLUMN_SLOTS, 0))
@@ -39,7 +40,7 @@ def get_cluster_usage() -> Dict[str, int]:
     return dict(sorted(counts.items(), key=lambda x: x[1]))
 
 
-def wait_for_jobs(jobs: List[str], sleep: int = 60) -> Iterator[str]:
+def wait_for_jobs(jobs: list[str], sleep: int = 60) -> Iterator[str]:
     """ """
 
     logger.info(f"Waiting for {len(jobs)} job(s) on UGE...")
@@ -67,7 +68,7 @@ def wait_for_jobs(jobs: List[str], sleep: int = 60) -> Iterator[str]:
 
     end_time = time.time()
     diff_time = end_time - start_time
-    logger.info(f"All jobs finished and took {diff_time / 60 / 60 :.2f}h")
+    logger.info(f"All jobs finished and took {diff_time / 60 / 60:.2f}h")
 
 
 def is_job_done(
@@ -81,9 +82,6 @@ def is_job_done(
     job_info, _ = get_qstat_job_json(job_id)
 
     # If there still is some qstat information, the job is not done
-    if job_info:
-        return False
-
     # TODO Check qacct -j information
 
-    return True
+    return not job_info

@@ -8,7 +8,7 @@ def test_parse_joblist_json():
 
     filename = RESOURCES / "uge" / "qstat_joblist.json"
 
-    with open(filename, "r") as f:
+    with open(filename) as f:
         stdout = f.read()
 
     rows = parse_joblist_json(stdout)
@@ -42,14 +42,14 @@ def test_parse_joblist_json():
 
     # Verify first job has sanitized data
     first_job = rows[0]
-    assert first_job["owner"].startswith(
-        "user"
-    ), f"Expected sanitized username, got: {first_job['owner']}"
+    assert first_job["owner"].startswith("user"), (
+        f"Expected sanitized username, got: {first_job['owner']}"
+    )
 
     # Check queue names are sanitized
-    assert (
-        "example.com" in first_job["queue_name"]
-    ), f"Expected sanitized hostname in queue, got: {first_job['queue_name']}"
+    assert "example.com" in first_job["queue_name"], (
+        f"Expected sanitized hostname in queue, got: {first_job['queue_name']}"
+    )
 
 
 def test_parse_jobinfo_json():
@@ -57,7 +57,7 @@ def test_parse_jobinfo_json():
 
     filename = RESOURCES / "uge" / "qstat_jobinfo_array.json"
 
-    with open(filename, "r") as f:
+    with open(filename) as f:
         stdout = f.read()
 
     rows, errors = parse_jobinfo_json(stdout)
@@ -93,22 +93,22 @@ def test_parse_jobinfo_error_json():
 
     filename = RESOURCES / "uge" / "qstat_jobinfo_error.json"
 
-    with open(filename, "r") as f:
+    with open(filename) as f:
         stdout = f.read()
 
     rows, errors = parse_jobinfo_json(stdout)
 
     # Verify error lines were extracted
     assert len(errors) > 0, "Expected error lines to be extracted"
-    assert any(
-        "error reason" in err for err in errors
-    ), f"Expected 'error reason' in errors, got: {errors}"
+    assert any("error reason" in err for err in errors), (
+        f"Expected 'error reason' in errors, got: {errors}"
+    )
 
     # Verify the error contains the expected information
     first_error = errors[0]
-    assert (
-        "Permission denied" in first_error
-    ), f"Expected 'Permission denied' in error, got: {first_error}"
+    assert "Permission denied" in first_error, (
+        f"Expected 'Permission denied' in error, got: {first_error}"
+    )
 
     # Verify structure
     assert len(rows) > 0, "No jobs returned"

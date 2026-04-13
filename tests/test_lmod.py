@@ -5,7 +5,9 @@ from conftest import RESOURCES
 
 from hpc_funcs import lmod
 
-if not lmod.get_lmod_executable():
+try:
+    lmod.get_lmod_executable()
+except RuntimeError:
     pytest.skip("Could not find LMOD executable", allow_module_level=True)
 
 
@@ -14,16 +16,15 @@ MODULE_NAME = "test"
 
 
 def test_use() -> None:
-
     lmod.use(MODULE_PATH)
 
     paths = os.environ.get("MODULEPATH")
     print(paths)
 
     assert os.environ.get("MODULEPATH") is not None, "No module path to be found"
-    assert str(MODULE_PATH) in os.environ.get(
-        "MODULEPATH", ""
-    ), "Unable to find loaded module path"
+    assert str(MODULE_PATH) in os.environ.get("MODULEPATH", ""), (
+        "Unable to find loaded module path"
+    )
 
 
 def test_load_os() -> None:
@@ -32,9 +33,9 @@ def test_load_os() -> None:
     print(os.environ.get("MODULEPATH"))
 
     # Check use
-    assert str(MODULE_PATH) in os.environ.get(
-        "MODULEPATH", ""
-    ), "Unable to find loaded module path"
+    assert str(MODULE_PATH) in os.environ.get("MODULEPATH", ""), (
+        "Unable to find loaded module path"
+    )
 
     lmod.load(MODULE_NAME)
 
@@ -54,15 +55,14 @@ def test_load_os() -> None:
 
 
 def test_load_return() -> None:
-
     lmod.use(MODULE_PATH)
 
     print(os.environ.get("MODULEPATH"))
 
     # Check use
-    assert str(MODULE_PATH) in os.environ.get(
-        "MODULEPATH", ""
-    ), "Unable to find loaded module path"
+    assert str(MODULE_PATH) in os.environ.get("MODULEPATH", ""), (
+        "Unable to find loaded module path"
+    )
 
     update_dict = lmod.get_load_environment(MODULE_NAME)
 

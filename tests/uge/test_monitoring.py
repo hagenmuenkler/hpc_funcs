@@ -11,7 +11,6 @@ if not has_uge():
 
 
 def test_cluster_usage():
-
     usage = get_cluster_usage()
 
     # Returns dict mapping username to slot count
