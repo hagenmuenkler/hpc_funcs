@@ -1,7 +1,6 @@
 ## What?
 
-The term "hpce\_utils" typically stands for "High-Performance Computing
-Environment Utilities." It refers to a collection of utility functions,
+The term "hpc\_funcs" refers to a collection of utility functions,
 modules, or libraries that are designed to facilitate high-performance
 computing (HPC) tasks and operations, from Python.
 

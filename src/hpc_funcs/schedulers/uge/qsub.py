@@ -87,6 +87,9 @@ def submit_script(script_path: Path | str) -> str:
     if not uge_id:
         raise RuntimeError("qsub returned no output - unable to get job ID")
 
+    # task arrray job IDs can be like 12345 or 12345.1-10:1, we just want the main part
+    uge_id = uge_id.split(".")[0]
+
     # Validate format of job_id
     try:
         int(uge_id)
