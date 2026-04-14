@@ -1,7 +1,13 @@
 import io
 from pathlib import Path
 
+import pytest
+
+from hpc_funcs.schedulers.uge import has_uge
 from hpc_funcs.schedulers.uge.constants import TASK_ENVIRONMENT_VARIABLE
+
+if not has_uge():
+    pytest.skip("Could not find UGE executable", allow_module_level=True)
 from hpc_funcs.schedulers.uge.monitoring import wait_for_jobs
 from hpc_funcs.schedulers.uge.monitoring.follow import TaskarrayProgress
 from hpc_funcs.schedulers.uge.qsub import submit_script, write_script

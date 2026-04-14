@@ -2,8 +2,13 @@ import time
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
+from hpc_funcs.schedulers.uge import has_uge
 from hpc_funcs.schedulers.uge.constants import TASK_ENVIRONMENT_VARIABLE
+
+if not has_uge():
+    pytest.skip("Could not find UGE executable", allow_module_level=True)
 from hpc_funcs.schedulers.uge.monitoring import wait_for_jobs
 from hpc_funcs.schedulers.uge.qacct import get_job_accounting
 from hpc_funcs.schedulers.uge.qdel import delete_job
@@ -127,7 +132,6 @@ def test_taskarray(global_tmp_path: Path):
 
     # Parse output
     for _, lines in stdout.items():
-
         for line in lines:
             if not line.strip():
                 continue

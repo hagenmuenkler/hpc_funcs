@@ -2,7 +2,7 @@ import subprocess
 
 import pytest
 
-from hpce_utils import shell
+from hpc_funcs import shell
 
 
 def test_subprocess_error():

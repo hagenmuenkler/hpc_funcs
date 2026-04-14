@@ -2,7 +2,7 @@ import datetime
 import logging
 import time
 from io import StringIO
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import tqdm
 
@@ -33,12 +33,10 @@ def get_time_from_ugestr(time_str: str) -> float:
 
 
 class TaskarrayProgress:
-
     @staticmethod
     def by_jobid(
-        job_id: str, position: int = 0, file: Optional[StringIO] = None
+        job_id: str, position: int = 0, file: StringIO | None = None
     ) -> "TaskarrayProgress":
-
         job_id = str(job_id)
         job_infos, _ = get_qstat_job_text(job_id)
         if not job_infos:
@@ -49,9 +47,9 @@ class TaskarrayProgress:
 
     def __init__(
         self,
-        job_info: Dict,
+        job_info: dict,
         position: int = 0,
-        file: Optional[StringIO] = None,
+        file: StringIO | None = None,
     ) -> None:
         self.position = position
         self.file = file
@@ -65,9 +63,8 @@ class TaskarrayProgress:
         return time_start
 
     def init_bar(self, job_info: dict, job_status: dict) -> None:
-
-        is_xml = job_info.get("JB_ja_structure", None) is not None
-        is_json = job_info.get("submission_time", None) is not None
+        is_xml = job_info.get("JB_ja_structure") is not None
+        is_json = job_info.get("submission_time") is not None
         # is_text = not is_xml and not is_json
 
         job_id = (
@@ -82,7 +79,9 @@ class TaskarrayProgress:
 
         # TODO Move submission_time to constant from format
 
-        timestamp: str = job_info.get("submission_time") if is_json else job_info.get("JB_submission_time")  # type: ignore
+        timestamp: str = (
+            job_info.get("submission_time") if is_json else job_info.get("JB_submission_time")
+        )  # type: ignore
         if timestamp is None:
             raise ValueError("Could not extract timestamp from job_info")
         time_start = get_time_from_ugestr(timestamp) if is_json else self._read_time(timestamp)
@@ -121,8 +120,7 @@ class TaskarrayProgress:
         # Reset time
         self.pbar.last_print_t = self.pbar.start_t = time_start
 
-    def update(self, joblist: List[Dict[str, Any]] | None = None) -> None:
-
+    def update(self, joblist: list[dict[str, Any]] | None = None) -> None:
         if joblist is None:
             jobs = get_all_jobs_text()
             joblist = parse_taskarray(jobs)
@@ -147,7 +145,7 @@ class TaskarrayProgress:
             n_error = int(job.get(COLUMN_ERROR, 0))
             n_finished = self.n_total - n_pending - n_running
 
-        postfix = dict()
+        postfix = {}
 
         if n_error > 0:
             postfix["err"] = n_error

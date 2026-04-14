@@ -1,4 +1,4 @@
-.PHONY: update-format format test test-dist build types upload cov
+.PHONY: update-format format check test test-dist build types upload cov clean clean-env
 
 package=hpc_funcs
 version_file1=./src/hpc_funcs/version.py
@@ -21,15 +21,9 @@ env: ${env}_uv
 
 env_uv:
 	uv venv ${env}
-	uv pip install -r requirements.txt --python ${env}/bin/python
 	uv pip install -e . --python ${env}/bin/python
+	uv pip install -e .[dev] --python ${env}/bin/python
 	${python} -m pre_commit install
-
-env_conda:
-	conda env create -f ./environment.yml -p ${env} --quiet
-	${python} -m pre_commit install
-	${python} -m pip install -e .
-
 
 ## Development
 
@@ -38,6 +32,8 @@ update-format:
 
 format:
 	${python} -m pre_commit run --all-files
+
+check: format types
 
 test:
 	${python} -m pytest ./tests
@@ -107,3 +103,7 @@ clean:
 	rm -rf *.whl
 	rm -rf ./build/ ./__pycache__/
 	rm -rf ./dist/
+
+clean-env:
+	rm -rf ./${env}/
+	rm -f .git/hooks/pre-commit

@@ -1,7 +1,7 @@
 import logging
 import re
 import subprocess
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from .constants import TAGS_ERROR, TAGS_PENDING, TAGS_RUNNING
 
@@ -47,10 +47,10 @@ COLUMN_INFO_NAME = "job_name"
 
 
 def get_qstat_text(
-    users: Optional[List[str]] = None,
-    queues: Optional[List[str]] = None,
-    resource_filter: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    users: list[str] | None = None,
+    queues: list[str] | None = None,
+    resource_filter: str | None = None,
+) -> list[dict[str, Any]]:
     """Get job status information from UGE using qstat text output.
 
     Args:
@@ -105,8 +105,8 @@ def get_qstat_text(
 
 
 def get_qstat_job_text(
-    job_id: Union[str, int],
-) -> Tuple[List[Dict[str, Any]], List[str]]:
+    job_id: str | int,
+) -> tuple[list[dict[str, Any]], list[str]]:
     """Get detailed information for a specific job using qstat -j (text format).
 
     This returns comprehensive information about a single job, including
@@ -166,7 +166,7 @@ def get_qstat_job_text(
     return jobs, errors
 
 
-def parse_joblist_text(stdout: str) -> List[Dict[str, Any]]:
+def parse_joblist_text(stdout: str) -> list[dict[str, Any]]:
     """
     Parse UGE qstat text output (list format).
 
@@ -176,7 +176,7 @@ def parse_joblist_text(stdout: str) -> List[Dict[str, Any]]:
     Returns:
         List of dictionaries containing job information
     """
-    jobs: List[Dict[str, Any]] = []
+    jobs: list[dict[str, Any]] = []
     lines = stdout.strip().split("\n")
 
     if len(lines) < 3:
@@ -207,10 +207,9 @@ def parse_joblist_text(stdout: str) -> List[Dict[str, Any]]:
 
         # Extract fields based on column positions
         # We'll use the positions to slice the line
-        job: Dict[str, Any] = {}
+        job: dict[str, Any] = {}
 
         for i, col in enumerate(ordered_cols):
-
             start = column_positions[col]
             end = column_positions[ordered_cols[i + 1]] if i + 1 < len(ordered_cols) else None
             value = line[start:end].strip()
@@ -222,7 +221,7 @@ def parse_joblist_text(stdout: str) -> List[Dict[str, Any]]:
     return jobs
 
 
-def parse_jobinfo_text(stdout: str) -> List[Dict[str, str]]:
+def parse_jobinfo_text(stdout: str) -> list[dict[str, str]]:
     """
     Output is column-length based and sections split by "=".
     Returns list key-value dict per section.
@@ -230,14 +229,14 @@ def parse_jobinfo_text(stdout: str) -> List[Dict[str, str]]:
 
     COL_VALUE_START = 28
 
-    output: List[Dict[str, str]] = [dict()]
+    output: list[dict[str, str]] = [{}]
 
     lines = stdout.split("\n")
 
     for line in lines:
         if "=" * 5 in line:
             if len(output[-1]) > 1:
-                output += [dict()]
+                output += [{}]
             continue
 
         # Format: pe_taskid     NONE
@@ -258,7 +257,7 @@ def parse_jobinfo_text(stdout: str) -> List[Dict[str, str]]:
     return output
 
 
-def parse_qstat_text(stdout: str) -> List[Dict[str, Any]]:
+def parse_qstat_text(stdout: str) -> list[dict[str, Any]]:
     """Parse qstat text output into list of job dicts."""
     stdout = stdout.strip()
     lines = stdout.split("\n")
@@ -267,7 +266,7 @@ def parse_qstat_text(stdout: str) -> List[Dict[str, Any]]:
     header.remove("at")
     header_indicies = []
 
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
 
     for line in header[1:]:
         idx = lines[0].index(line)
@@ -289,7 +288,7 @@ def parse_qstat_text(stdout: str) -> List[Dict[str, Any]]:
         line_ = split_qstat_line(line)
         line_ = list(line_)
 
-        row: Dict[str, Any] = {key: value for key, value in zip(header, line_)}
+        row: dict[str, Any] = dict(zip(header, line_, strict=False))
         # Convert slots to int
         if "slots" in row:
             row["slots"] = int(row["slots"])
@@ -298,7 +297,7 @@ def parse_qstat_text(stdout: str) -> List[Dict[str, Any]]:
     return rows
 
 
-def parse_taskarray(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def parse_taskarray(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Parse task array information from job list.
 
     Args:
@@ -324,9 +323,9 @@ def parse_taskarray(jobs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return count
 
     # Get unique job IDs
-    job_ids = set(job[COLUMN_JOBID] for job in jobs)
+    job_ids = {job[COLUMN_JOBID] for job in jobs}
 
-    rows: List[Dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
 
     for job_id in job_ids:
         # Filter jobs by job_id

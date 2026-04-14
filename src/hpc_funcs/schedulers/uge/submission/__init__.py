@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Optional
 
 from jinja2 import Template
 from pydantic import BaseModel, EmailStr, Field
@@ -22,7 +22,8 @@ class TaskConfig(BaseModel):
     To set up a task array, set task_stop to a value greater than task_start (1 by default).
     If task_stop is not set, job will not be submitted as job array.
 
-    To limit the number of concurrent tasks in a task array, set task_concurrent to a value greater than 0.
+    To limit the number of concurrent tasks in a task array,
+    set task_concurrent to a value greater than 0.
     By default, no such limit is set.
     """
 
@@ -32,34 +33,32 @@ class TaskConfig(BaseModel):
     mem: int = Field(default=4, ge=1, description="Memory in GB")
     hours: int = Field(default=7, ge=0, description="Hours for runtime")
     mins: int = Field(default=0, ge=0, le=59, description="Minutes for runtime")
-    log_dir: Optional[Path] = Field(default=DEFAULT_LOG_DIR, description="Log directory")
-    cwd: Optional[Path] = Field(default=None, description="Working directory")
-    environ: Dict[str, str] = Field(default_factory=dict, description="Environment variables")
+    log_dir: Path | None = Field(default=DEFAULT_LOG_DIR, description="Log directory")
+    cwd: Path | None = Field(default=None, description="Working directory")
+    environ: dict[str, str] = Field(default_factory=dict, description="Environment variables")
 
     # GPU support
-    gpu: Optional[str] = Field(default=None, description="GPU card specification")
+    gpu: str | None = Field(default=None, description="GPU card specification")
 
     # Task array support
     task_start: int = Field(default=1, ge=1, description="Task array start index")
-    task_stop: Optional[int] = Field(default=None, ge=1, description="Task array stop index")
+    task_stop: int | None = Field(default=None, ge=1, description="Task array stop index")
     task_step: int = Field(default=1, ge=1, description="Task array step")
-    task_concurrent: Optional[int] = Field(default=None, ge=1, description="Concurrent tasks")
+    task_concurrent: int | None = Field(default=None, ge=1, description="Concurrent tasks")
 
     # Email notifications
-    user_email: Optional[EmailStr] = Field(
-        default=None, description="User email for notifications"
-    )
+    user_email: EmailStr | None = Field(default=None, description="User email for notifications")
 
     # Job dependencies
-    hold_job_id: Optional[str] = Field(
+    hold_job_id: str | None = Field(
         default=None,
         description="Hold job ID for dependencies. Several job IDs can be separated by commas.",
     )
 
     # Modules
     module_purge: bool = Field(default=False, description="Whether to purge modules")
-    module_use: List[Path] = Field(default_factory=list, description="Module use paths")
-    module_load: List[str] = Field(default_factory=list, description="Modules to load")
+    module_use: list[Path] = Field(default_factory=list, description="Module use paths")
+    module_load: list[str] = Field(default_factory=list, description="Modules to load")
 
 
 def generate_script(
@@ -92,7 +91,6 @@ def generate_script(
 
 
 def generate_log_dir(log_dir: Path | None) -> str | None:
-
     if log_dir is not None:
         if not log_dir.exists():
             log_dir.mkdir(parents=True)
@@ -111,12 +109,12 @@ def read_logfiles(
     job_id: str,
     ignore_stdout: bool = True,
     filter_lmod: bool = False,
-) -> Tuple[Dict[Path, List[str]], Dict[Path, List[str]]]:
+) -> tuple[dict[Path, list[str]], dict[Path, list[str]]]:
     """Read logfiles produced by UGE task array. Ignore empty log files"""
     logger.debug("Looking for finished log files in %s", log_path)
     stderr_log_filenames = list(log_path.glob(f"*.e{job_id}*"))
 
-    stderr = dict()
+    stderr = {}
     for filename in stderr_log_filenames:
         if filename.stat().st_size == 0:
             continue
@@ -126,10 +124,10 @@ def read_logfiles(
         stderr = filter_stderr_for_lmod(stderr)
 
     if ignore_stdout:
-        return dict(), stderr
+        return {}, stderr
 
     stdout_log_filenames = log_path.glob(f"*.o{job_id}*")
-    stdout = dict()
+    stdout = {}
     for filename in stdout_log_filenames:
         if filename.stat().st_size == 0:
             continue
@@ -138,7 +136,7 @@ def read_logfiles(
     return stdout, stderr
 
 
-def filter_stderr_for_lmod(stderr_dict: Dict[Path, List[str]]) -> Dict[Path, List[str]]:
+def filter_stderr_for_lmod(stderr_dict: dict[Path, list[str]]) -> dict[Path, list[str]]:
     """Filter stderr for lmod lines"""
 
     stderr_filtered = defaultdict(list)
@@ -151,9 +149,9 @@ def filter_stderr_for_lmod(stderr_dict: Dict[Path, List[str]]) -> Dict[Path, Lis
     return dict(stderr_filtered)
 
 
-def parse_logfile(filename: Path) -> List[str]:
+def parse_logfile(filename: Path) -> list[str]:
     """Read logfile, without line-breaks"""
     # TODO Maybe find exceptions and raise them?
-    with open(filename, "r", encoding="utf-8") as f:
+    with open(filename, encoding="utf-8") as f:
         lines = f.read().split("\n")
     return lines

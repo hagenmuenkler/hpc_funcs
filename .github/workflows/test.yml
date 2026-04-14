@@ -1,0 +1,46 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Create environment
+        run: make env python-version=${{ matrix.python-version }}
+
+      - name: Run tests
+        run: source ./env/bin/activate && make test python=python
+
+      - name: Check format and types
+        run: source ./env/bin/activate && make format
+
+      - name: Build package
+        run: source ./env/bin/activate && make build
+
+      - name: Check distribution
+        run: source ./env/bin/activate && make test-dist
+
+      - name: Test installation from wheel
+        run: |
+          pip install dist/*.whl
+          python -c "import hpc_funcs; print(hpc_funcs.__version__)"

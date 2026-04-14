@@ -15,10 +15,9 @@ pd.set_option("display.max_columns", None)
 
 
 def test_parse_jobinfo():
-
     filename = RESOURCES / "uge" / "qstat_jobinfo_array.txt"
 
-    with open(filename, "r") as f:
+    with open(filename) as f:
         stdout = f.read()
 
     jobs = parse_jobinfo_text(stdout)
@@ -40,10 +39,9 @@ def test_parse_jobinfo():
 
 
 def test_parse_joblist():
-
     filename = RESOURCES / "uge/qstat_joblist.txt"
 
-    with open(filename, "r") as f:
+    with open(filename) as f:
         stdout = f.read()
 
     job_list = parse_joblist_text(stdout)

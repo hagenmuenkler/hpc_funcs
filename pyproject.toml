@@ -1,18 +1,96 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "hpc_funcs"
 dynamic = ["version"]
 authors = []
+description = "HPC utility functions"
+readme = "README.md"
+license = {text = "MIT"}
 requires-python = ">=3.11"
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "jinja2",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "ty",
+    "pip",
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "pandas",
+    "twine",
+    "build",
+    "monkeytype",
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "hpc_funcs.version.__version__"}
 
-[options.packages.find]
-where="src"
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
-"*" = ["*.jinja"]
+"*" = ["*.jinja", "py.typed"]
+
+[tool.ruff]
+line-length = 99
+target-version = "py311"
+exclude = [
+    ".git",
+    ".github",
+    "__pycache__",
+    "build",
+    "dist",
+    "*.egg-info",
+    "env",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "F",      # pyflakes
+    "I",      # isort (import sorting)
+    "UP",     # pyupgrade (modern Python syntax)
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["hpc_funcs"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B017", "B023", "E501"]
+"*/__init__.py" = ["F401"]
+
+[tool.ty]
+# Type checking with ty (Astral's extremely fast Python type checker)
+
+[tool.ty.environment]
+python-version = "3.11"
+
+[tool.ty.src]
+exclude = ["tests/"]
+
+[tool.ty.rules]
+# Ignore unresolved imports since pre-commit env doesn't have all packages
+unresolved-import = "ignore"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+log_cli = true
+log_cli_level = "DEBUG"

@@ -1,7 +1,7 @@
 import json
 import logging
 import subprocess
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from hpc_funcs.shell import execute
 
@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_qstat_job_json(
-    job_id: Union[str, int],
-) -> Tuple[List[Dict[str, Any]], List[str]]:
+    job_id: str | int,
+) -> tuple[list[dict[str, Any]], list[str]]:
     """Get detailed information for a specific job using qstat -j.
 
     This returns comprehensive information about a single job, including
@@ -60,10 +60,10 @@ def get_qstat_job_json(
 
 
 def get_qstat_json(
-    users: Optional[List[str]] = None,
-    queues: Optional[List[str]] = None,
-    resource_filter: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+    users: list[str] | None = None,
+    queues: list[str] | None = None,
+    resource_filter: str | None = None,
+) -> list[dict[str, Any]]:
     """Get job status information from UGE using qstat -json.
 
     Args:
@@ -112,7 +112,7 @@ def get_qstat_json(
     return rows
 
 
-def parse_jobinfo_json(stdout: str) -> Tuple[List[Dict[str, Any]], List[str]]:
+def parse_jobinfo_json(stdout: str) -> tuple[list[dict[str, Any]], list[str]]:
     """Parse job info JSON output.
 
     Args:
@@ -154,7 +154,7 @@ def parse_jobinfo_json(stdout: str) -> Tuple[List[Dict[str, Any]], List[str]]:
     return rows, errors
 
 
-def parse_joblist_json(stdout: str) -> List[Dict[str, str]]:
+def parse_joblist_json(stdout: str) -> list[dict[str, str]]:
     """Parse qstat JSON output into a list of job dictionaries.
 
     Args:
@@ -193,7 +193,7 @@ def parse_joblist_json(stdout: str) -> List[Dict[str, str]]:
     return rows
 
 
-def _extract_job_row(job: Dict[str, Any], job_type: str) -> Dict[str, Any]:
+def _extract_job_row(job: dict[str, Any], job_type: str) -> dict[str, Any]:
     """Extract relevant fields from a job dictionary.
 
     Args:
