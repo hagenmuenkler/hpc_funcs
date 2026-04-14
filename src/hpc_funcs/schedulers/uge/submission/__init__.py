@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 from jinja2 import Template
@@ -15,7 +16,8 @@ LMOD_LINES = [
 ]
 
 
-class TaskScript(BaseModel):
+@dataclass
+class JobScript(BaseModel):
     """Configuration for UGE job submission.
 
     To set up a task array, set task_stop to a value greater than task_start (1 by default).

@@ -11,7 +11,7 @@ if not has_uge():
 from hpc_funcs.schedulers.uge.monitoring import wait_for_jobs
 from hpc_funcs.schedulers.uge.monitoring.follow import TaskarrayProgress
 from hpc_funcs.schedulers.uge.qsub import submit_script, write_script
-from hpc_funcs.schedulers.uge.submission import generate_script
+from hpc_funcs.schedulers.uge.submission import JobScript
 
 
 def test_array_progressbar(global_tmp_path: Path):
@@ -24,7 +24,7 @@ def test_array_progressbar(global_tmp_path: Path):
     command = f'sleep {TASK_ENVIRONMENT_VARIABLE}0"'  # Sleep for 10, 20, 30 etc
     log_dir = tmp_path / "uge_testlogs"
 
-    script: str = generate_script(
+    job_script = JobScript(
         cmd=command,
         cwd=tmp_path,
         log_dir=log_dir,
@@ -32,6 +32,7 @@ def test_array_progressbar(global_tmp_path: Path):
         task_concurrent=2,
         task_stop=3,
     )
+    script: str = job_script.generate_script()
     print(script)
     assert command in script
 
