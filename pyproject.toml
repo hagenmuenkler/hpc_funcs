@@ -92,5 +92,6 @@ unresolved-import = "ignore"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-log_cli = true
-log_cli_level = "DEBUG"
+log_level = "DEBUG"
+log_format = "%(asctime)s [%(levelname)8s] %(message)s (%(filename)s:%(lineno)s)"
+log_date_format = "%Y-%m-%d %H:%M:%S"

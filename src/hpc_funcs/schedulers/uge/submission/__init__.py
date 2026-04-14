@@ -1,14 +1,11 @@
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Optional
 
 from jinja2 import Template
 
 DEFAULT_LOG_DIR = Path("./ugelogs/")
-TEMPLATE_TASKARRAY = Path(__file__).parent / "templates" / "submit-task-array.jinja"
-TEMPLATE_SINGLE = Path(__file__).parent / "templates" / "submit-normal.jinja"
-TEMPLATE_HOLDING = Path(__file__).parent / "templates" / "submit-holding.jinja"
+MASTER_TEMPLATE = Path(__file__).parent / "templates" / "submit_template.jinja"
 logger = logging.getLogger(__name__)
 
 LMOD_LINES = [
@@ -17,118 +14,131 @@ LMOD_LINES = [
 ]
 
 
-# pylint: disable=too-many-arguments,too-many-locals
-def generate_single_script(
+def generate_script(
     cmd: str,
+    name: str = "UGEJob",
     cores: int = 1,
+    mem: int = 4,
+    hours: int = 7,
+    mins: int = 0,
+    log_dir: Path | None = DEFAULT_LOG_DIR,
     cwd: Path | None = None,
     environ: dict[str, str] | None = None,
-    hours: int = 7,
-    mins: int | None = None,
-    log_dir: Path | None = DEFAULT_LOG_DIR,
-    mem: int = 4,
-    name: str = "UGEJob",
-    hold_job_id: str | None = None,
-    user_email: str | None = None,
-    generate_dirs: bool = True,
-) -> str:
-    """
-    Remember:
-      - To set core restrictive env variables
-    """
-
-    if not isinstance(cores, int) or cores < 1:
-        raise ValueError(
-            "Cannot submit with invalid cores set. Needs to be a integer greater than 0."
-        )
-
-    if environ is None:
-        environ = {}
-
-    kwargs = locals()
-
-    if generate_dirs:
-        kwargs["log_dir"] = generate_log_dir(log_dir)
-
-    with open(TEMPLATE_SINGLE) as file_:
-        template = Template(file_.read())
-
-    script = template.render(**kwargs)
-
-    return script
-
-
-# pylint: disable=too-many-arguments,too-many-locals
-def generate_taskarray_script(
-    cmd: str,
-    cores: int = 1,
-    cwd: Path | None = None,
-    environ: dict[str, str] | None = None,
-    hours: int = 7,
-    mins: int | None = None,
-    log_dir: Path | None = DEFAULT_LOG_DIR,
-    mem: int = 4,
-    name: str = "UGEJob",
-    task_concurrent: int = 100,
+    gpu: str | None = None,
     task_start: int = 1,
-    task_step: int = 1,
     task_stop: int | None = None,
+    task_step: int = 1,
+    task_concurrent: int | None = None,
+    user_email: str | None = None,
     hold_job_id: str | None = None,
-    user_email: str | None = None,
+    module_purge: bool = False,
+    module_use: list[Path] | None = None,
+    module_load: list[str] | None = None,
     generate_dirs: bool = True,
 ) -> str:
+    """Generate a UGE job submission script with explicit parameters.
+
+    This function generates a UGE (Univa Grid Engine) job submission script by
+    rendering the master Jinja2 template with the provided configuration parameters.
+    It provides an alternative to JobScript.generate_script() for scenarios where
+    you want to work with explicit function parameters rather than a model instance.
+
+    The generated script can be used to submit jobs to a UGE cluster, with support for:
+    - Single jobs and task arrays
+    - GPU specifications
+    - Module loading and purging
+    - Email notifications
+    - Job dependencies
+    - Custom environment variables
+    - Working directories and logging
+
+    Args:
+        cmd: Command to execute in the job.
+        name: Job name (default: "UGEJob").
+        cores: Number of CPU cores to request (default: 1, minimum: 1).
+        mem: Memory in GB to request (default: 4, minimum: 1).
+        hours: Hours for job runtime limit (default: 7, minimum: 0).
+        mins: Minutes for job runtime limit (default: 0, range: 0-59).
+        log_dir: Directory for job output logs. If None, no logs are created
+            (default: "./ugelogs/").
+        cwd: Working directory for the job. If None, uses submission directory
+            (default: None).
+        environ: Dictionary of environment variables to set for the job
+            (default: None, treated as empty dict).
+        gpu: GPU specification string (e.g., "nvidia_h100:4" for 4 GPU cards).
+            If None, no GPU requested (default: None).
+        task_start: Starting index for task arrays (default: 1, minimum: 1).
+        task_stop: Ending index for task arrays. If None, job is not a task array
+            (default: None, minimum: 1 if specified).
+        task_step: Step size for iterating through task array indices
+            (default: 1, minimum: 1).
+        task_concurrent: Maximum number of concurrent tasks in a task array.
+            If None, no limit is applied (default: None, minimum: 1 if specified).
+        user_email: Email address for job notifications. If None, no notifications
+            are sent (default: None).
+        hold_job_id: Job ID(s) to wait for before starting this job. Multiple IDs
+            can be comma-separated. If None, no job dependency (default: None).
+        module_purge: Whether to purge all loaded modules before loading new ones
+            (default: False).
+        module_use: List of module search paths to add before loading modules
+            (default: None, treated as empty list).
+        module_load: List of module names/versions to load
+            (default: None, treated as empty list).
+        generate_dirs: Whether to create the log directory if it doesn't exist
+            (default: True).
+
+    Returns:
+        str: The rendered UGE job submission script as a string, ready to be
+            written to a file or piped to qsub.
+
+    Side Effects:
+        If generate_dirs is True and log_dir is not None, creates the log
+        directory (and parent directories) if it doesn't already exist.
+
+    Example:
+        >>> script = generate_script(
+        ...     cmd="python my_script.py",
+        ...     name="analysis_job",
+        ...     cores=8,
+        ...     mem=4,
+        ...     hours=2,
+        ...     task_start=1,
+        ...     task_stop=100,
+        ...     module_load=["python/3.11"],
+        ... )
+        >>> with open("job.sh", "w") as f:
+        ...     f.write(script)
     """
+    if generate_dirs and log_dir is not None:
+        generate_log_dir(log_dir)
 
-    If task_stop is not set, job will not be submitted as jobarray
+    # Prepare context dictionary for template rendering, using defaults for None values
+    context = {
+        "cmd": cmd,
+        "name": name,
+        "cores": cores,
+        "mem": mem,
+        "hours": hours,
+        "mins": mins,
+        "log_dir": log_dir,
+        "cwd": cwd,
+        "environ": environ if environ is not None else {},
+        "gpu": gpu,
+        "task_start": task_start,
+        "task_stop": task_stop,
+        "task_step": task_step,
+        "task_concurrent": task_concurrent,
+        "user_email": user_email,
+        "hold_job_id": hold_job_id,
+        "module_purge": module_purge,
+        "module_use": module_use if module_use is not None else [],
+        "module_load": module_load if module_load is not None else [],
+    }
 
-    Remember:
-      - To set core restrictive env variables
-    """
-
-    if not isinstance(cores, int) or cores < 1:
-        raise ValueError(
-            "Cannot submit with invalid cores set. Needs to be a integer greater than 0."
-        )
-
-    if environ is None:
-        environ = {}
-
-    kwargs = locals()
-
-    if generate_dirs:
-        kwargs["log_dir"] = generate_log_dir(log_dir)
-
-    with open(TEMPLATE_TASKARRAY) as file_:
+    with open(MASTER_TEMPLATE, encoding="utf-8") as file_:
         template = Template(file_.read())
 
-    script = template.render(**kwargs)
-
-    return script
-
-
-def generate_hold_script(
-    hold_job_id: str,
-    user_email: str | None = None,
-    cmd: str = "sleep 1",
-    name: str = "UGEHoldJob",
-    log_dir: Path | None = DEFAULT_LOG_DIR,
-    generate_dirs: bool = True,
-) -> str:
-    if generate_dirs:
-        log_dir_str = generate_log_dir(log_dir)
-    else:
-        log_dir_str = str(log_dir.resolve()) if log_dir is not None else None
-
-    with open(TEMPLATE_HOLDING) as file_:
-        template = Template(file_.read())
-
-    script = template.render(
-        hold_job_id=hold_job_id,
-        user_email=user_email,
-        cmd=cmd,
-        name=name,
-        log_dir=log_dir_str,
-    )
+    script = template.render(context)
 
     return script
 
@@ -154,7 +164,7 @@ def read_logfiles(
     filter_lmod: bool = False,
 ) -> tuple[dict[Path, list[str]], dict[Path, list[str]]]:
     """Read logfiles produced by UGE task array. Ignore empty log files"""
-    logger.debug(f"Looking for finished log files in {log_path}")
+    logger.debug("Looking for finished log files in %s", log_path)
     stderr_log_filenames = list(log_path.glob(f"*.e{job_id}*"))
 
     stderr = {}
@@ -195,6 +205,6 @@ def filter_stderr_for_lmod(stderr_dict: dict[Path, list[str]]) -> dict[Path, lis
 def parse_logfile(filename: Path) -> list[str]:
     """Read logfile, without line-breaks"""
     # TODO Maybe find exceptions and raise them?
-    with open(filename) as f:
+    with open(filename, encoding="utf-8") as f:
         lines = f.read().split("\n")
     return lines

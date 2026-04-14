@@ -14,16 +14,12 @@ from hpc_funcs.schedulers.uge.qacct import get_job_accounting
 from hpc_funcs.schedulers.uge.qdel import delete_job
 from hpc_funcs.schedulers.uge.qstat_text import get_qstat_job_text
 from hpc_funcs.schedulers.uge.qsub import submit_script, write_script
-from hpc_funcs.schedulers.uge.submission import (
-    generate_single_script,
-    generate_taskarray_script,
-    read_logfiles,
-)
+from hpc_funcs.schedulers.uge.submission import generate_script, read_logfiles
 
 
 def test_generate_submit_script():
     command = "which python"
-    script: str = generate_taskarray_script(command)
+    script: str = generate_script(cmd=command)
     print(script)
     assert command in script
 
@@ -39,8 +35,8 @@ def test_single(global_tmp_path: Path):
     command = f"echo 'before'\nsleep 5\n\necho '{success_string}'"
     log_dir = tmp_path / "uge_testlogs"
 
-    script: str = generate_single_script(
-        command,
+    script: str = generate_script(
+        cmd=command,
         cores=1,
         cwd=tmp_path,
         log_dir=log_dir,
@@ -95,8 +91,8 @@ def test_taskarray(global_tmp_path: Path):
     command = f'sleep 5 & echo "{success_string} {TASK_ENVIRONMENT_VARIABLE}"'
     log_dir = tmp_path / "uge_testlogs"
 
-    script: str = generate_taskarray_script(
-        command,
+    script: str = generate_script(
+        cmd=command,
         cores=1,
         cwd=tmp_path,
         log_dir=log_dir,
@@ -156,8 +152,8 @@ def test_failed_command(global_tmp_path: Path):
     command = f'set -e; sleep 1; if test "{TASK_ENVIRONMENT_VARIABLE}" == 2; then command_does_not_exist; else pwd; fi'
     log_dir = tmp_path / "logs"
     n_tasks = 2
-    script: str = generate_taskarray_script(
-        command,
+    script: str = generate_script(
+        cmd=command,
         cores=1,
         log_dir=log_dir,
         name="TestJob",
@@ -213,13 +209,13 @@ def test_failed_uge_submit(tmp_path: Path):
     command = "echo Hello"
     n_tasks = 2
 
-    script: str = generate_taskarray_script(
-        command,
-        generate_dirs=False,
+    script: str = generate_script(
+        cmd=command,
         log_dir=log_dir,
         name="TestJob",
         task_concurrent=1,
         task_stop=n_tasks,
+        generate_dirs=False,
     )
 
     script_path = write_script(script, directory=tmp_path)
