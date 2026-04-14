@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "jinja2",
     "tqdm",
+    "pydantic",
 ]
 
 [project.optional-dependencies]

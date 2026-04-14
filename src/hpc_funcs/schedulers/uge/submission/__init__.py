@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Optional
 
 from jinja2 import Template
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 DEFAULT_LOG_DIR = Path("./ugelogs/")
 MASTER_TEMPLATE = Path(__file__).parent / "templates" / "submit_template.jinja"
@@ -16,7 +16,7 @@ LMOD_LINES = [
 ]
 
 
-class TaskConfig(BaseModel):
+class TaskScript(BaseModel):
     """Configuration for UGE job submission.
 
     To set up a task array, set task_stop to a value greater than task_start (1 by default).
@@ -47,7 +47,7 @@ class TaskConfig(BaseModel):
     task_concurrent: int | None = Field(default=None, ge=1, description="Concurrent tasks")
 
     # Email notifications
-    user_email: EmailStr | None = Field(default=None, description="User email for notifications")
+    user_email: str | None = Field(default=None, description="User email for notifications")
 
     # Job dependencies
     hold_job_id: str | None = Field(
@@ -60,34 +60,23 @@ class TaskConfig(BaseModel):
     module_use: list[Path] = Field(default_factory=list, description="Module use paths")
     module_load: list[str] = Field(default_factory=list, description="Modules to load")
 
+    def generate_script(
+        self,
+        generate_dirs: bool = True,
+    ) -> str:
+        """
+        Generate a script to submit a job to UGE based on the provided configuration.
+        """
 
-def generate_script(
-    config: TaskConfig | None = None,
-    generate_dirs: bool = True,
-    **kwargs,
-) -> str:
-    """
-    Generate a script to submit a job to UGE based on the provided configuration.
+        if generate_dirs:
+            generate_log_dir(self.log_dir)
 
-    Can be called with a TaskConfig, or keyword arguments:
-        generate_script(config=TaskConfig(...))
-        generate_script(cmd="echo hello", cores=4)
-    """
+        with open(MASTER_TEMPLATE, encoding="utf-8") as file_:
+            template = Template(file_.read())
 
-    if config is None:
-        config = TaskConfig(**kwargs)
-    if kwargs:
-        config = config.model_copy(update=kwargs)
+        script = template.render(self.model_dump())
 
-    if generate_dirs:
-        generate_log_dir(config.log_dir)
-
-    with open(MASTER_TEMPLATE, encoding="utf-8") as file_:
-        template = Template(file_.read())
-
-    script = template.render(config.model_dump())
-
-    return script
+        return script
 
 
 def generate_log_dir(log_dir: Path | None) -> str | None:
